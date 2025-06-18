@@ -10,8 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { useRouter } from 'next/navigation';
 
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import axios from "axios";
 
 // Define validation schema using Yup
 const validationSchema = Yup.object({
@@ -38,19 +40,39 @@ const Login = () => {
     backgroundEnd: '#F0F8F9',
   };
 
-  const handleSubmit = async (values: any) => {
-    setIsLoading(true);
-    // Simulate API call for login
-    setTimeout(() => {
-      console.log("Login data:", values);
-      if (values.email === "test@example.com" && values.password === "password123") {
-        toast.success("Login Successful!");
-      } else {
-        toast.error("Invalid email or password.");
-      }
-      setIsLoading(false);
-    }, 2000);
+
+  const initialValues = {
+    email: '',
+    password: '',
   };
+  const router = useRouter()
+  const handleSubmit = async(values: typeof initialValues, { setSubmitting }: any) => {
+    const {data}= await  axios.post('http://localhost:8080/login', values)
+    if(data?.isLoggedIn) router.back();
+    toast(data?.message)
+    // Simulate API call
+    setTimeout(() => {
+
+      setSubmitting(false);
+    }, 1000);
+  };
+
+
+
+
+  // const handleSubmit = async (values: any) => {
+  //   setIsLoading(true);
+  //   // Simulate API call for login
+  //   setTimeout(() => {
+  //     console.log("Login data:", values);
+  //     if (values.email === "test@example.com" && values.password === "password123") {
+  //       toast.success("Login Successful!");
+  //     } else {
+  //       toast.error("Invalid email or password.");
+  //     }
+  //     setIsLoading(false);
+  //   }, 2000);
+  // };
 
   return (
     <div

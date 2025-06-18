@@ -10,6 +10,8 @@ import { toast } from "sonner"
 import { Eye, EyeOff, Mail, Phone, Lock, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import axios from "axios";
+import { useRouter } from "next/navigation";
 
 const validationSchema = Yup.object({
   email: Yup.string()
@@ -42,19 +44,50 @@ const Register = () => {
     backgroundEnd: '#F0F8F9',
   };
 
-  const handleSubmit = async (values: any) => {
-    setIsLoading(true);
+  const router = useRouter()
 
+  const initialValues = {
+    email: '',
+    phoneNumber: '',
+    password: '',
+  };
+
+  const handleSubmit = async(values: typeof initialValues, { setSubmitting }: any) => {
+    const {data}= await  axios.post('http://localhost:8080/register', values)
+    toast(data)
     // Simulate API call
     setTimeout(() => {
-      console.log("Registration data:", values);
-      toast({
-        title: "Registration Successful!",
-        description: "Welcome to ShopEase! Your account has been created.",
-      });
-      setIsLoading(false);
-    }, 2000);
+
+      setSubmitting(false);
+    }, 1000);
   };
+
+
+
+  // const handleSubmit = async (values: any) => {
+  //   setIsLoading(true);
+  //   try {
+  //     console.log("Sending registration data to backend:", values);
+  //     const response = await axios.post('http://localhost:8080/register', values);
+  //     alert(response)
+  //     if(data?.isLoggedIn) router.push('/')
+
+  //     console.log("Registration successful:", response.data);
+  //     toast({
+  //       title: "Registration Successful!",
+  //       description: "Welcome to ShopEase! Your account has been created.",
+  //     });
+  //   } catch (error) {
+  //     console.error("Registration failed:", error);
+  //     toast({
+  //       title: "Registration Failed",
+  //       description: "There was an error creating your account. Please try again.",
+  //       variant: "destructive",
+  //     });
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
 
   return (
     <div
