@@ -14,6 +14,8 @@ import { useRouter } from 'next/navigation';
 
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import axios from "axios";
+import { useDispatch } from "react-redux";
+import { addLoginDetails } from "@/redux/reducerSlices/userSlice";
 
 // Define validation schema using Yup
 const validationSchema = Yup.object({
@@ -46,33 +48,20 @@ const Login = () => {
     password: '',
   };
   const router = useRouter()
+  const dispatch = useDispatch()
   const handleSubmit = async(values: typeof initialValues, { setSubmitting }: any) => {
     const {data}= await  axios.post('http://localhost:8080/login', values)
     if(data?.isLoggedIn) router.back();
     toast(data?.message)
+    if(data) {
+      dispatch(addLoginDetails(data))
+    }
     // Simulate API call
     setTimeout(() => {
 
       setSubmitting(false);
     }, 1000);
   };
-
-
-
-
-  // const handleSubmit = async (values: any) => {
-  //   setIsLoading(true);
-  //   // Simulate API call for login
-  //   setTimeout(() => {
-  //     console.log("Login data:", values);
-  //     if (values.email === "test@example.com" && values.password === "password123") {
-  //       toast.success("Login Successful!");
-  //     } else {
-  //       toast.error("Invalid email or password.");
-  //     }
-  //     setIsLoading(false);
-  //   }, 2000);
-  // };
 
   return (
     <div

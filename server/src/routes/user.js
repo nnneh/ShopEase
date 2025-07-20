@@ -18,7 +18,6 @@ userRouter.post('/register', async (req, res) => {
     return res.send('user registered')
   })
 
-
   userRouter.post('/login', async (req, res) => {
     const {email, password} = req.body
     // ---step 1: email should exist
@@ -31,8 +30,7 @@ userRouter.post('/register', async (req, res) => {
       const isMatched = await bcrypt.compare(password, user.password)
       if(!isMatched) return res.send({message: 'Invalid password'})
       
-      const token = await jwt.sign({ email: email }, 'da77735d96d5e7ede93459711deda6204a6616a8e3d7f44f1b4b02ce619d17ed21e10137b876e819f9cc6a9d740ea4431a243a57c1b6de0fbfe9a60541855f21');
-
+      const token = await jwt.sign({ email: email }, process.env.SECRET_KEY)
       return res.send({
           message: 'logged in successfully',
           user: user,
@@ -47,4 +45,10 @@ userRouter.post('/register', async (req, res) => {
     const data = await User.find()
     return res.send(data)
   })
+
+  userRouter.get("/users/:id", async (req, res) => {
+  const  data = await User.findById(req.params.id);
+  return res.send(data);
+  });
+
 export default userRouter
