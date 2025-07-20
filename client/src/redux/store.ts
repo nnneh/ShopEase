@@ -1,17 +1,22 @@
 import { configureStore, combineReducers } from "@reduxjs/toolkit";
-import { persistStore, persistReducer } from "redux-persist";
+import {
+  persistStore,
+  persistReducer,
+  FLUSH,
+  REHYDRATE,
+  PAUSE,
+  PERSIST,
+  PURGE,
+  REGISTER,
+} from "redux-persist";
 import storage from "redux-persist/lib/storage";
 import counterSlice from "./reducerSlices/counterSlice";
-import boxSlice from "./reducerSlices/boxSlice";
 import userSlice from "./reducerSlices/userSlice";
-import reduxLogger from "redux-logger";
-import productSlice from "./reducerSlices/productSlice";
+import reduxLogger from "redux-logger"; // Assuming @types/redux-logger is installed
 
 const rootReducer = combineReducers({
   counter: counterSlice,
-  box: boxSlice,
   user: userSlice,
-  product: productSlice,
 });
 
 const persistConfig = {
@@ -23,7 +28,13 @@ const persistedReducer = persistReducer(persistConfig, rootReducer);
 
 export const store = configureStore({
   reducer: persistedReducer,
-  middleware: () => [reduxLogger],
+  middleware: (getDefaultMiddleware) => // <--- This is the key change!
+    getDefaultMiddleware({
+      // Redux-persist dispatches non-serializable actions, so we need to ignore them
+      serializableCheck: {
+        ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
+      },
+    }).concat(reduxLogger), // <--- Use .concat() to add your custom middleware
 });
 
 export const persistor = persistStore(store);
