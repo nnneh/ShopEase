@@ -29,6 +29,7 @@
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.6.2",
     "redux-logger": "^3.0.6",
+    "redux-persist": "^6.0.0",
     "sonner": "^2.0.5",
     "tailwind-merge": "^3.3.1",
     "yup": "^1.6.1"

@@ -1,14 +1,14 @@
 import express from "express";
 import Product from "../models/product.js";
-import Category from "../models/category.js"; // Corrected import to match your original code's usage
+import Category from "../models/category.js";
 import User from "../models/user.js";
-import CapitalizeWords from "../utils/capitalizeWords.js"; // Assuming this utility exists
-import runPrompt from "../utils/generalizeChipName.js"; // Assuming this utility exists
+// Removed: import runPrompt from "../utils/generalizeChipName.js";
 
 const productRouter = express.Router();
 
-//  Create Product
+// Removed: capitalizeWords function is no longer needed
 
+// Create Product
 productRouter.post("/products", async (req, res) => {
   try {
     const { title, price, description, category, stock, images, ratings } = req.body;
@@ -17,8 +17,8 @@ productRouter.post("/products", async (req, res) => {
       return res.status(400).json({ message: "Please provide all required fields" });
     }
 
-    // Capitalize product title if CapitalizeWords is intended for this field
-    const capitalizedTitle = CapitalizeWords(title);
+    // Removed: Capitalization of title. Using title as is.
+    // const capitalizedTitle = capitalizeWords(title);
 
     // Find the category by name
     const foundCategory = await Category.findOne({ name: category });
@@ -28,7 +28,7 @@ productRouter.post("/products", async (req, res) => {
     }
 
     const newProduct = new Product({
-      title: capitalizedTitle,
+      title: title, // Storing title as received
       price,
       stock,
       category: foundCategory._id,
@@ -47,8 +47,7 @@ productRouter.post("/products", async (req, res) => {
   }
 });
 
-//  Get All Products
-
+// Get All Products
 productRouter.get("/products", async (req, res) => {
   try {
     let products;
@@ -58,14 +57,13 @@ productRouter.get("/products", async (req, res) => {
         .populate("sellerId", "name email phoneNumber");
     } else if (req.query.name) {
       const searchRegex = new RegExp(req.query.name, "i");
-      products = await Product.find({ title: searchRegex }) // Changed 'name' to 'title'
+      products = await Product.find({ title: searchRegex })
         .populate("sellerId")
         .populate("category");
     } else if (req.query.userId) {
       const user = await User.findById(req.query.userId);
       const allProducts = await Product.find().populate("sellerId category");
       products = allProducts.filter((item) => {
-        // Ensure userPreferences and category exist before accessing _id
         return user?.userPreferences?.includes(item.category?._id);
       });
     } else {
@@ -73,39 +71,36 @@ productRouter.get("/products", async (req, res) => {
     }
     res.status(200).json(products);
   } catch (err) {
-    console.error(err); // Changed console.log to console.error
+    console.error(err);
     res.status(500).json({ error: "Failed to fetch products" });
   }
 });
 
 // Get Product by ID
-
 productRouter.get("/products/:id", async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id).populate("category"); // Populate category
+    const product = await Product.findById(req.params.id).populate("category");
     if (!product) return res.status(404).json({ error: "Product not found" });
     res.status(200).json(product);
   } catch (err) {
-    console.error(err); // Changed console.log to console.error
+    console.error(err);
     res.status(500).json({ error: "Failed to fetch product" });
   }
 });
 
-//  Get Products by Category ID
-
+// Get Products by Category ID
 productRouter.get("/products/category/:categoryId", async (req, res) => {
   try {
-    const products = await Product.find({ category: req.params.categoryId }).populate("category"); // Find by category ID
+    const products = await Product.find({ category: req.params.categoryId }).populate("category");
     if (!products || products.length === 0) return res.status(404).json({ error: "No products found for this category" });
     res.status(200).json(products);
   } catch (err) {
-    console.error(err); // Changed console.log to console.error
+    console.error(err);
     res.status(500).json({ error: "Failed to fetch products by category" });
   }
 });
 
 // Update Product
-
 productRouter.patch("/products/:id", async (req, res) => {
   try {
     const { title, price, description, category, stock, images, ratings } = req.body;
@@ -116,7 +111,7 @@ productRouter.patch("/products/:id", async (req, res) => {
 
     const updatedProductData = {};
 
-    if (title) updatedProductData.title = CapitalizeWords(title); // Capitalize if title is updated
+    if (title) updatedProductData.title = title; // Removed capitalization
     if (price) updatedProductData.price = price;
     if (description) updatedProductData.description = description;
     if (stock) updatedProductData.stock = stock;
@@ -148,7 +143,6 @@ productRouter.patch("/products/:id", async (req, res) => {
 });
 
 // Delete Product
-
 productRouter.delete("/products/:id", async (req, res) => {
   try {
     const product = await Product.findByIdAndDelete(req.params.id);
@@ -162,22 +156,20 @@ productRouter.delete("/products/:id", async (req, res) => {
   }
 });
 
-//  Get Product Chips
-
+// Get Product Chips
 productRouter.get("/product-chips", async (req, res) => {
-  let productChips; // Renamed 'product' to 'productChips' for clarity
+  let productChips;
   if (req.query.categoryId) {
-    productChips = await Product.find({ category: req.query.categoryId }).select("_id title category"); // Changed 'name' to 'title'
+    productChips = await Product.find({ category: req.query.categoryId }).select("_id title category");
   } else {
-    productChips = await Product.find().select("_id title category"); // Changed 'name' to 'title'
+    productChips = await Product.find().select("_id title category");
   }
   if (productChips.length == 0) return res.json([]);
-  const productChipInfo = await runPrompt(productChips);
-  res.json(productChipInfo);
+  // Removed: const productChipInfo = await runPrompt(productChips);
+  res.json(productChips); // Now directly returning the raw productChips
 });
 
-//  Search Products by IDs
-
+// Search Products by IDs
 productRouter.get("/product-search", async (req, res) => {
   const matchedProducts = await Product.find({
     _id: { $in: req.query?.productIds?.split(',') }
