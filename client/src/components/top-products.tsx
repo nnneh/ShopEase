@@ -99,5 +99,4 @@ const topProducts = [
     price: "39.99",
     image: "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?w=48&h=48&fit=crop&crop=center",
     text: "Protein"
-  },
-]
+  },]

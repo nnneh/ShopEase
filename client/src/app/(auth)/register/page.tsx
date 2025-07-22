@@ -60,7 +60,7 @@ const Register = () => {
   const handleSubmit = async(values: typeof initialValues, { setSubmitting }: any) => {
     setIsLoading(true);
     try {
-      const { data } = await axios.post('http://localhost:8080/register', values);
+      const { data } = await axios.post(process.env.NEXT_PUBLIC_API_URL + '/register', values);
       toast.success(data.message || 'Registration successful!');
       
       // If registration is successful and user is logged in, redirect
