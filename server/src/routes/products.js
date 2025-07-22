@@ -2,11 +2,8 @@ import express from "express";
 import Product from "../models/product.js";
 import Category from "../models/category.js";
 import User from "../models/user.js";
-// Removed: import runPrompt from "../utils/generalizeChipName.js";
 
 const productRouter = express.Router();
-
-// Removed: capitalizeWords function is no longer needed
 
 // Create Product
 productRouter.post("/products", async (req, res) => {
@@ -17,18 +14,14 @@ productRouter.post("/products", async (req, res) => {
       return res.status(400).json({ message: "Please provide all required fields" });
     }
 
-    // Removed: Capitalization of title. Using title as is.
-    // const capitalizedTitle = capitalizeWords(title);
-
-    // Find the category by name
     const foundCategory = await Category.findOne({ name: category });
 
     if (!foundCategory) {
-      return res.status(400).json({ message: "Category not found" });
+      return res.status(404).json({ message: "Category not found" });
     }
 
     const newProduct = new Product({
-      title: title, // Storing title as received
+      title: title,
       price,
       stock,
       category: foundCategory._id,
@@ -42,7 +35,6 @@ productRouter.post("/products", async (req, res) => {
 
     res.status(201).json({ message: "Product created successfully", data: newProduct });
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -62,6 +54,9 @@ productRouter.get("/products", async (req, res) => {
         .populate("category");
     } else if (req.query.userId) {
       const user = await User.findById(req.query.userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
       const allProducts = await Product.find().populate("sellerId category");
       products = allProducts.filter((item) => {
         return user?.userPreferences?.includes(item.category?._id);
@@ -71,7 +66,6 @@ productRouter.get("/products", async (req, res) => {
     }
     res.status(200).json(products);
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: "Failed to fetch products" });
   }
 });
@@ -80,10 +74,16 @@ productRouter.get("/products", async (req, res) => {
 productRouter.get("/products/:id", async (req, res) => {
   try {
     const product = await Product.findById(req.params.id).populate("category");
-    if (!product) return res.status(404).json({ error: "Product not found" });
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
     res.status(200).json(product);
   } catch (err) {
-    console.error(err);
+    // If the ID format is invalid, a 400 Bad Request is more appropriate.
+    // If it's another server-side error, 500.
+    if (err.name === 'CastError') {
+      return res.status(400).json({ error: "Invalid product ID format" });
+    }
     res.status(500).json({ error: "Failed to fetch product" });
   }
 });
@@ -92,10 +92,14 @@ productRouter.get("/products/:id", async (req, res) => {
 productRouter.get("/products/category/:categoryId", async (req, res) => {
   try {
     const products = await Product.find({ category: req.params.categoryId }).populate("category");
-    if (!products || products.length === 0) return res.status(404).json({ error: "No products found for this category" });
+    if (!products || products.length === 0) {
+      return res.status(404).json({ error: "No products found for this category" });
+    }
     res.status(200).json(products);
   } catch (err) {
-    console.error(err);
+    if (err.name === 'CastError') {
+      return res.status(400).json({ error: "Invalid category ID format" });
+    }
     res.status(500).json({ error: "Failed to fetch products by category" });
   }
 });
@@ -111,7 +115,7 @@ productRouter.patch("/products/:id", async (req, res) => {
 
     const updatedProductData = {};
 
-    if (title) updatedProductData.title = title; // Removed capitalization
+    if (title) updatedProductData.title = title;
     if (price) updatedProductData.price = price;
     if (description) updatedProductData.description = description;
     if (stock) updatedProductData.stock = stock;
@@ -124,7 +128,7 @@ productRouter.patch("/products/:id", async (req, res) => {
     if (category) {
       const foundCategory = await Category.findOne({ name: category });
       if (!foundCategory) {
-        return res.status(400).json({ message: "Category not found" });
+        return res.status(404).json({ message: "Category not found" });
       }
       updatedProductData.category = foundCategory._id;
     }
@@ -135,9 +139,11 @@ productRouter.patch("/products/:id", async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    res.json({ message: "Product updated successfully", data: product });
+    res.status(200).json({ message: "Product updated successfully", data: product });
   } catch (error) {
-    console.error(error);
+    if (error.name === 'CastError') {
+      return res.status(400).json({ error: "Invalid product ID format" });
+    }
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -149,32 +155,62 @@ productRouter.delete("/products/:id", async (req, res) => {
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
-    res.json({ message: "Product deleted successfully" });
+    res.status(200).json({ message: "Product deleted successfully" });
   } catch (error) {
-    console.error(error);
+    if (error.name === 'CastError') {
+      return res.status(400).json({ error: "Invalid product ID format" });
+    }
     res.status(500).json({ message: "Server error" });
   }
 });
 
 // Get Product Chips
 productRouter.get("/product-chips", async (req, res) => {
-  let productChips;
-  if (req.query.categoryId) {
-    productChips = await Product.find({ category: req.query.categoryId }).select("_id title category");
-  } else {
-    productChips = await Product.find().select("_id title category");
+  try {
+    let productChips;
+    if (req.query.categoryId) {
+      productChips = await Product.find({ category: req.query.categoryId }).select("_id title category");
+      if (productChips.length === 0) {
+        return res.status(404).json({ message: "No product chips found for this category." });
+      }
+    } else {
+      productChips = await Product.find().select("_id title category");
+    }
+    if (productChips.length === 0) {
+      return res.status(200).json([]); // Return empty array with 200 if no products overall
+    }
+    res.status(200).json(productChips);
+  } catch (error) {
+    if (error.name === 'CastError' && req.query.categoryId) {
+      return res.status(400).json({ error: "Invalid category ID format for product chips." });
+    }
+    res.status(500).json({ message: "Server error fetching product chips." });
   }
-  if (productChips.length == 0) return res.json([]);
-  // Removed: const productChipInfo = await runPrompt(productChips);
-  res.json(productChips); // Now directly returning the raw productChips
 });
 
 // Search Products by IDs
 productRouter.get("/product-search", async (req, res) => {
-  const matchedProducts = await Product.find({
-    _id: { $in: req.query?.productIds?.split(',') }
-  }).populate('sellerId category');
-  res.json(matchedProducts);
+  try {
+    const productIds = req.query?.productIds?.split(',');
+    if (!productIds || productIds.length === 0) {
+      return res.status(400).json({ message: "Please provide product IDs for search." });
+    }
+    const matchedProducts = await Product.find({
+      _id: { $in: productIds }
+    }).populate('sellerId category');
+
+    if (matchedProducts.length === 0) {
+      return res.status(404).json({ message: "No products found for the given IDs." });
+    }
+    res.status(200).json(matchedProducts);
+  } catch (error) {
+    // This catch block will primarily handle issues with the IDs themselves if they are malformed,
+    // as Mongoose's $in operator handles non-existent IDs gracefully.
+    if (error.name === 'CastError') {
+      return res.status(400).json({ error: "One or more provided product IDs are in an invalid format." });
+    }
+    res.status(500).json({ message: "Server error during product search." });
+  }
 });
 
 export default productRouter;

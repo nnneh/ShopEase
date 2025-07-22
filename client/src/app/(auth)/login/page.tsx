@@ -49,18 +49,39 @@ const Login = () => {
   };
   const router = useRouter()
   const dispatch = useDispatch()
-  const handleSubmit = async(values: typeof initialValues, { setSubmitting }: any) => {
-    const {data}= await  axios.post(process.env.NEXT_PUBLIC_API_URL +'/login', values)
-    if(data?.isLoggedIn) router.back();
-    toast(data?.message)
-    if(data) {
-      dispatch(addLoginDetails(data))
-    }
-    // Simulate API call
-    setTimeout(() => {
 
+  const handleSubmit = async (values: typeof initialValues, { setSubmitting }: any) => {
+    setIsLoading(true); // Start loading
+    try {
+      const { data } = await axios.post(process.env.NEXT_PUBLIC_API_URL + '/login', values);
+
+      if (data?.isLoggedIn) {
+        toast.success(data?.message || 'Login successful!');
+        dispatch(addLoginDetails(data)); // Dispatch all received data including role
+
+        // Conditional routing based on user role
+        switch (data.user.role) { // Assuming 'data.role' contains the user's role
+          case 'admin':
+            router.push('/admin/home'); // Redirect to admin dashboard
+            break;
+          case 'user':
+            router.push('/'); // Redirect to customer home (or a specific customer dashboard like /customer/dashboard)
+            break;
+          default:
+            router.push('/'); // Default redirect if role is not recognized or not provided
+            break;
+        }
+      } else {
+        toast.error(data?.message || 'Login failed. Please check your credentials.');
+      }
+    } catch (error: any) {
+      console.error("Login failed:", error);
+      const errorMessage = error.response?.data?.message || 'Login failed. Please try again.';
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false); // End loading
       setSubmitting(false);
-    }, 1000);
+    }
   };
 
   return (

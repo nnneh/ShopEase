@@ -5,9 +5,10 @@ import * as Yup from "yup";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner"
-import { Eye, EyeOff, Mail, Phone, Lock, ShoppingBag } from "lucide-react";
+import { Eye, EyeOff, Mail, Phone, Lock, User, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import axios from "axios";
@@ -27,6 +28,9 @@ const validationSchema = Yup.object({
     .matches(/^\+?[\d\s\-()]+$/, "Please enter a valid phone number")
     .min(10, "Phone number must be at least 10 digits")
     .required("Phone number is required"),
+  role: Yup.string()
+    .oneOf(['user', 'admin'], "Please select a valid role")
+    .required("Role is required"),
 });
 
 const Register = () => {
@@ -50,44 +54,28 @@ const Register = () => {
     email: '',
     phoneNumber: '',
     password: '',
+    role: '', 
   };
 
   const handleSubmit = async(values: typeof initialValues, { setSubmitting }: any) => {
-    const {data}= await  axios.post('http://localhost:8080/register', values)
-    toast(data)
-    // Simulate API call
-    setTimeout(() => {
-
+    setIsLoading(true);
+    try {
+      const { data } = await axios.post('http://localhost:8080/register', values);
+      toast.success(data.message || 'Registration successful!');
+      
+      // If registration is successful and user is logged in, redirect
+      if (data?.isLoggedIn) {
+        router.push('/');
+      }
+    } catch (error: any) {
+      console.error("Registration failed:", error);
+      const errorMessage = error.response?.data?.message || 'Registration failed. Please try again.';
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
       setSubmitting(false);
-    }, 1000);
+    }
   };
-
-
-
-  // const handleSubmit = async (values: any) => {
-  //   setIsLoading(true);
-  //   try {
-  //     console.log("Sending registration data to backend:", values);
-  //     const response = await axios.post('http://localhost:8080/register', values);
-  //     alert(response)
-  //     if(data?.isLoggedIn) router.push('/')
-
-  //     console.log("Registration successful:", response.data);
-  //     toast({
-  //       title: "Registration Successful!",
-  //       description: "Welcome to ShopEase! Your account has been created.",
-  //     });
-  //   } catch (error) {
-  //     console.error("Registration failed:", error);
-  //     toast({
-  //       title: "Registration Failed",
-  //       description: "There was an error creating your account. Please try again.",
-  //       variant: "destructive",
-  //     });
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
 
   return (
     <div
@@ -100,7 +88,6 @@ const Register = () => {
         {/* Logo Section */}
         <div className="text-center mb-8">
           <div className="inline-flex flex-col items-center justify-center gap-3 mb-4">
-            {/* Removed the inline style for background from this div */}
             <div className="relative p-3 rounded-2xl shadow-lg flex items-center justify-center overflow-hidden">
               <Image
                 className="object-contain"
@@ -138,15 +125,11 @@ const Register = () => {
 
           <CardContent>
             <Formik
-              initialValues={{
-                email: "",
-                password: "",
-                phoneNumber: "",
-              }}
+              initialValues={initialValues}
               validationSchema={validationSchema}
               onSubmit={handleSubmit}
             >
-              {({ isSubmitting }) => (
+              {({ isSubmitting, setFieldValue, values }) => (
                 <Form className="space-y-6">
                   {/* Email Field */}
                   <div className="space-y-2">
@@ -168,13 +151,59 @@ const Register = () => {
                     <ErrorMessage name="email" component="p" className="text-destructive text-sm font-medium" />
                   </div>
 
+                  {/* Phone Number Field */}
+                  <div className="space-y-2">
+                    <Label htmlFor="phoneNumber" className="font-medium" style={{ color: themeColors.neutral }}>
+                      Phone Number
+                    </Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5" style={{ color: themeColors.neutral }} />
+                      <Field
+                        as={Input}
+                        id="phoneNumber"
+                        name="phoneNumber"
+                        type="tel"
+                        placeholder="Enter your phone number"
+                        className="pl-11 h-12 border-border/50 transition-colors"
+                        style={{ borderColor: 'var(--border)', '--tw-focus-ring-color': themeColors.primary }}
+                      />
+                    </div>
+                    <ErrorMessage name="phoneNumber" component="p" className="text-destructive text-sm font-medium" />
+                  </div>
+
+                  {/* Role Field */}
+                 <div className="space-y-2">
+                    <Label htmlFor="role" className="font-medium" style={{ color: themeColors.neutral }}>
+                      User Type
+                    </Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 z-10" style={{ color: themeColors.neutral }} />
+                      <Select
+                        value={values.role}
+                        onValueChange={(value) => setFieldValue('role', value)}
+                      >
+                        <SelectTrigger
+                            className="pl-11 h-12 border-border/50 transition-colors w-full" // Added w-full here
+                            style={{ borderColor: 'var(--border)', '--tw-focus-ring-color': themeColors.primary }}
+                        >
+                          <SelectValue placeholder="Select user type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="user">User</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <ErrorMessage name="role" component="p" className="text-destructive text-sm font-medium" />
+                  </div>
+
                   {/* Password Field */}
                   <div className="space-y-2">
                     <Label htmlFor="password" className="font-medium" style={{ color: themeColors.neutral }}>
                       Password
                     </Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5" style={{ color: themeColors.neutral }} />
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 z-10" style={{ color: themeColors.neutral }} />
                       <Field
                         as={Input}
                         id="password"
@@ -194,26 +223,6 @@ const Register = () => {
                       </button>
                     </div>
                     <ErrorMessage name="password" component="p" className="text-destructive text-sm font-medium" />
-                  </div>
-
-                  {/* Phone Number Field */}
-                  <div className="space-y-2">
-                    <Label htmlFor="phoneNumber" className="font-medium" style={{ color: themeColors.neutral }}>
-                      Phone Number
-                    </Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5" style={{ color: themeColors.neutral }} />
-                      <Field
-                        as={Input}
-                        id="phoneNumber"
-                        name="phoneNumber"
-                        type="tel"
-                        placeholder="Enter your phone number"
-                        className="pl-11 h-12 border-border/50 transition-colors"
-                        style={{ borderColor: 'var(--border)', '--tw-focus-ring-color': themeColors.primary }}
-                      />
-                    </div>
-                    <ErrorMessage name="phoneNumber" component="p" className="text-destructive text-sm font-medium" />
                   </div>
 
                   {/* Submit Button */}
