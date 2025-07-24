@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Search, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,9 +32,9 @@ interface Category {
   _id: string;
   name: string;
   description: string;
-  image: string;
-  itemCount: number;
-  status: "active" | "inactive";
+  image?: string;
+  itemCount?: number;
+  status?: "active" | "inactive";
   createdAt: string;
 }
 
@@ -46,7 +46,11 @@ export default function CategoriesPage() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
+    image: "",
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const [isUploading, setIsUploading] = useState(false);
 
   const filteredCategories = categories.filter(
     (category) =>
@@ -60,6 +64,7 @@ export default function CategoriesPage() {
       setCategories(data);
     } catch (error) {
       console.error("Error fetching categories:", error);
+      console.error("Fetch error details:", error.response?.data || error.message);
     }
   };
 
@@ -67,17 +72,78 @@ export default function CategoriesPage() {
     fetchCategories();
   }, []);
 
-  const handleCreateCategory = async () => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadImage = async (): Promise<string> => {
+    if (!imageFile) return "";
+
+    setIsUploading(true);
     try {
-      await axios.post(process.env.NEXT_PUBLIC_API_URL + "/categories", {
+      const uploadData = new FormData();
+      uploadData.append('image', imageFile);
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+      const response = await axios.post(`${apiUrl}/upload`, uploadData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      return response.data.imageUrl;
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      throw error;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({ name: "", description: "", image: "" });
+    setImageFile(null);
+    setImagePreview("");
+  };
+
+  const handleCreateCategory = async () => {
+    if (!formData.name.trim() || !formData.description.trim()) {
+      return;
+    }
+    
+    try {
+      let imageUrl = "";
+      
+      // Upload image if selected
+      if (imageFile) {
+        imageUrl = await uploadImage();
+      }
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+      const response = await axios.post(`${apiUrl}/categories`, {
         name: formData.name,
         description: formData.description,
+        image: imageUrl,
       });
-      fetchCategories();
-      setFormData({ name: "", description: "" });
-      setIsCreateDialogOpen(false);
+      
+      if (response.data) {
+        await fetchCategories();
+        resetForm();
+        setIsCreateDialogOpen(false);
+      }
     } catch (error) {
       console.error("Error creating category:", error);
+      console.error("Full error details:", error.response?.data || error.message);
     }
   };
 
@@ -86,25 +152,46 @@ export default function CategoriesPage() {
     setFormData({
       name: category.name,
       description: category.description,
+      image: category.image || "",
     });
+    
+    // Set preview to existing image if available
+    if (category.image) {
+      setImagePreview(category.image);
+    }
   };
 
   const handleUpdateCategory = async () => {
-    if (editingCategory && formData.name && formData.description) {
-      try {
-        await axios.put(
-          `${process.env.NEXT_PUBLIC_API_URL}/categories/${editingCategory._id}`,
-          {
-            name: formData.name,
-            description: formData.description,
-          }
-        );
-        fetchCategories();
-        setEditingCategory(null);
-        setFormData({ name: "", description: "" });
-      } catch (error) {
-        console.error("Error updating category:", error);
+    if (!editingCategory || !formData.name.trim() || !formData.description.trim()) {
+      return;
+    }
+    
+    try {
+      let imageUrl = formData.image; // Keep existing image by default
+      
+      // Upload new image if selected
+      if (imageFile) {
+        imageUrl = await uploadImage();
       }
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+      const response = await axios.patch(
+        `${apiUrl}/categories/${editingCategory._id}`,
+        {
+          name: formData.name,
+          description: formData.description,
+          image: imageUrl,
+        }
+      );
+      
+      if (response.data) {
+        await fetchCategories();
+        setEditingCategory(null);
+        resetForm();
+      }
+    } catch (error) {
+      console.error("Error updating category:", error);
+      console.error("Full error details:", error.response?.data || error.message);
     }
   };
 
@@ -118,6 +205,67 @@ export default function CategoriesPage() {
       console.error("Error deleting category:", error);
     }
   };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview("");
+    setFormData({ ...formData, image: "" });
+  };
+
+  const ImageUploadSection = () => (
+    <div className="grid gap-2">
+      <Label htmlFor="image">Category Image</Label>
+      <div className="space-y-4">
+        {/* File Input */}
+        <div className="flex items-center gap-4">
+          <Input
+            id="image"
+            type="file"
+            accept="image/*"
+            onChange={handleImageChange}
+            className="border-blue-200 focus:border-blue-400"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            onClick={() => document.getElementById('image')?.click()}
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Browse
+          </Button>
+        </div>
+
+        {/* Image Preview */}
+        {imagePreview && (
+          <div className="relative inline-block">
+            <img 
+              src={imagePreview} 
+              alt="Preview" 
+              className="w-32 h-32 object-cover rounded-lg border-2 border-blue-200"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="absolute -top-2 -right-2 h-6 w-6 p-0 rounded-full bg-red-100 hover:bg-red-200 border-red-300"
+              onClick={removeImage}
+            >
+              <X className="h-3 w-3 text-red-600" />
+            </Button>
+          </div>
+        )}
+
+        {/* Upload Status */}
+        {isUploading && (
+          <div className="text-sm text-blue-600">
+            Uploading image...
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white">
@@ -148,7 +296,7 @@ export default function CategoriesPage() {
             onOpenChange={(open) => {
               setIsCreateDialogOpen(open);
               if (!open) {
-                setFormData({ name: "", description: "" });
+                resetForm();
               }
             }}
           >
@@ -189,24 +337,26 @@ export default function CategoriesPage() {
                     className="border-blue-200 focus:border-blue-400"
                   />
                 </div>
+                <ImageUploadSection />
               </div>
               <div className="flex justify-end gap-2">
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setFormData({ name: "", description: "" });
+                    resetForm();
                     setIsCreateDialogOpen(false);
                   }}
                   className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                  disabled={isUploading}
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={handleCreateCategory}
                   className="bg-blue-600 hover:bg-blue-700 text-white"
-                  disabled={!formData.name.trim()}
+                  disabled={!formData.name.trim() || !formData.description.trim() || isUploading}
                 >
-                  Create Category
+                  {isUploading ? "Creating..." : "Create Category"}
                 </Button>
               </div>
             </DialogContent>
@@ -288,15 +438,29 @@ export default function CategoriesPage() {
               className="border-blue-200 hover:shadow-lg transition-shadow"
             >
               <CardHeader className="p-4 pb-2">
-                <div className="w-full h-32 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center mb-2">
+                <div className="w-full h-32 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center mb-2 overflow-hidden">
                   {category.image ? (
                     <img 
-                      src={category.image} 
+                      src={`http://localhost:8080${category.image}`}
                       alt={category.name}
                       className="w-full h-full object-cover rounded-lg"
+                      onError={(e) => {
+                        // Fallback if image fails to load
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        const fallback = target.nextElementSibling as HTMLElement;
+                        if (fallback) fallback.style.display = 'flex';
+                      }}
                     />
                   ) : (
                     <div className="text-blue-500 text-4xl font-bold">
+                      {category.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  
+                  {/* Fallback content for failed image loads */}
+                  {category.image && (
+                    <div className="text-blue-500 text-4xl font-bold" style={{ display: 'none' }}>
                       {category.name.charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -333,7 +497,7 @@ export default function CategoriesPage() {
                     onOpenChange={(open) => {
                       if (!open) {
                         setEditingCategory(null);
-                        setFormData({ name: "", description: "" });
+                        resetForm();
                       }
                     }}
                   >
@@ -380,24 +544,26 @@ export default function CategoriesPage() {
                             className="border-blue-200 focus:border-blue-400"
                           />
                         </div>
+                        <ImageUploadSection />
                       </div>
                       <div className="flex justify-end gap-2">
                         <Button
                           variant="outline"
                           onClick={() => {
                             setEditingCategory(null);
-                            setFormData({ name: "", description: "" });
+                            resetForm();
                           }}
                           className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                          disabled={isUploading}
                         >
                           Cancel
                         </Button>
                         <Button
                           onClick={handleUpdateCategory}
                           className="bg-blue-600 hover:bg-blue-700 text-white"
-                          disabled={!formData.name.trim()}
+                          disabled={!formData.name.trim() || !formData.description.trim() || isUploading}
                         >
-                          Update Category
+                          {isUploading ? "Updating..." : "Update Category"}
                         </Button>
                       </div>
                     </DialogContent>
