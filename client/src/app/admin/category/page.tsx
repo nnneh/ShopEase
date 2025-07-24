@@ -94,8 +94,8 @@ export default function CategoriesPage() {
       const uploadData = new FormData();
       uploadData.append('image', imageFile);
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      const response = await axios.post(`${apiUrl}/upload`, uploadData, {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await axios.post(`${API_BASE_URL}/upload`, uploadData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -129,8 +129,8 @@ export default function CategoriesPage() {
         imageUrl = await uploadImage();
       }
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      const response = await axios.post(`${apiUrl}/categories`, {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await axios.post(`${API_BASE_URL}/categories`, {
         name: formData.name,
         description: formData.description,
         image: imageUrl,
@@ -174,9 +174,9 @@ export default function CategoriesPage() {
         imageUrl = await uploadImage();
       }
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
       const response = await axios.patch(
-        `${apiUrl}/categories/${editingCategory._id}`,
+        `${API_BASE_URL}/categories/${editingCategory._id}`,
         {
           name: formData.name,
           description: formData.description,
