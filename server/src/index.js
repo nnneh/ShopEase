@@ -7,6 +7,7 @@ import productRouter from './routes/products.js'
 import categoryRouter from './routes/category.js'
 import path from 'path';
 import { fileURLToPath } from 'url';
+import orderRouter from './routes/order.js'
 
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
@@ -26,6 +27,7 @@ app.use('/uploads', express.static(path.join(dirname, 'uploads')));
 app.use(userRouter)
 app.use(productRouter)
 app.use(categoryRouter)
+app.use(orderRouter)
 
 
 app.listen(port, () => {
