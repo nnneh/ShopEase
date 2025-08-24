@@ -5,52 +5,68 @@ import User from "../models/user.js";
 
 const productRouter = express.Router();
 
-// Create Product
+
 productRouter.post("/products", async (req, res) => {
   try {
-    const { title, price, description, category, stock, images, ratings } = req.body;
+    const {
+      title,
+      price,
+      description,
+      category,
+      stock,
+      images,
+      ratings,
+      sellerId,
+    } = req.body;
 
-    if (!title || !price || !description || !category || !stock || !images) {
+    if (!title || !price || !description || !category || !stock || !images || !sellerId) {
       return res.status(400).json({ message: "Please provide all required fields" });
     }
 
     const foundCategory = await Category.findOne({ name: category });
-
     if (!foundCategory) {
       return res.status(404).json({ message: "Category not found" });
     }
 
+    const sellerUser = await User.findById(sellerId);
+    if (!sellerUser || sellerUser.role !== 'admin') {
+      return res.status(400).json({ message: "Invalid seller (admin) user" });
+    }
+
     const newProduct = new Product({
-      title: title,
+      title,
       price,
       stock,
       category: foundCategory._id,
+      sellerId,
       description,
       images,
       ratings: ratings || [],
-      averageRating: ratings?.length ? (ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length) : 0,
+      averageRating: ratings?.length ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length : 0,
     });
 
     await newProduct.save();
 
     res.status(201).json({ message: "Product created successfully", data: newProduct });
   } catch (error) {
+    console.error("Error creating product:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
 
-// Get All Products
+
 productRouter.get("/products", async (req, res) => {
   try {
     let products;
-    if (req.query?.sellerId) {
-      products = await Product.find({ sellerId: req.query?.sellerId })
+    if (req.query.sellerId) {
+      products = await Product.find({ sellerId: req.query.sellerId })
         .sort({ createdAt: -1 })
-        .populate("sellerId", "name email phoneNumber");
+        .populate("sellerId", "email role") // populate admin user fields
+        .populate("category");
     } else if (req.query.name) {
       const searchRegex = new RegExp(req.query.name, "i");
       products = await Product.find({ title: searchRegex })
-        .populate("sellerId")
+        .populate("sellerId", "email role")
         .populate("category");
     } else if (req.query.userId) {
       const user = await User.findById(req.query.userId);
@@ -58,17 +74,86 @@ productRouter.get("/products", async (req, res) => {
         return res.status(404).json({ message: "User not found" });
       }
       const allProducts = await Product.find().populate("sellerId category");
-      products = allProducts.filter((item) => {
-        return user?.userPreferences?.includes(item.category?._id);
-      });
+      products = allProducts.filter((item) => user?.userPreferences?.includes(item.category?._id));
     } else {
-      products = await Product.find().populate("sellerId").populate("category");
+      products = await Product.find().populate("sellerId", "email role").populate("category");
     }
     res.status(200).json(products);
   } catch (err) {
+    console.error("Error fetching products:", err);
     res.status(500).json({ error: "Failed to fetch products" });
   }
 });
+
+
+
+
+
+
+// Create Product
+// productRouter.post("/products", async (req, res) => {
+//   try {
+//     const { title, price, description, category, stock, images, ratings } = req.body;
+
+//     if (!title || !price || !description || !category || !stock || !images) {
+//       return res.status(400).json({ message: "Please provide all required fields" });
+//     }
+
+//     const foundCategory = await Category.findOne({ name: category });
+
+//     if (!foundCategory) {
+//       return res.status(404).json({ message: "Category not found" });
+//     }
+
+//     const newProduct = new Product({
+//       title: title,
+//       price,
+//       stock,
+//       category: foundCategory._id,
+//       description,
+//       images,
+//       ratings: ratings || [],
+//       averageRating: ratings?.length ? (ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length) : 0,
+//     });
+
+//     await newProduct.save();
+
+//     res.status(201).json({ message: "Product created successfully", data: newProduct });
+//   } catch (error) {
+//     res.status(500).json({ message: "Server error" });
+//   }
+// });
+
+// // Get All Products
+// productRouter.get("/products", async (req, res) => {
+//   try {
+//     let products;
+//     if (req.query?.sellerId) {
+//       products = await Product.find({ sellerId: req.query?.sellerId })
+//         .sort({ createdAt: -1 })
+//         .populate("sellerId", "name email phoneNumber");
+//     } else if (req.query.name) {
+//       const searchRegex = new RegExp(req.query.name, "i");
+//       products = await Product.find({ title: searchRegex })
+//         .populate("sellerId")
+//         .populate("category");
+//     } else if (req.query.userId) {
+//       const user = await User.findById(req.query.userId);
+//       if (!user) {
+//         return res.status(404).json({ message: "User not found" });
+//       }
+//       const allProducts = await Product.find().populate("sellerId category");
+//       products = allProducts.filter((item) => {
+//         return user?.userPreferences?.includes(item.category?._id);
+//       });
+//     } else {
+//       products = await Product.find().populate("sellerId").populate("category");
+//     }
+//     res.status(200).json(products);
+//   } catch (err) {
+//     res.status(500).json({ error: "Failed to fetch products" });
+//   }
+// });
 
 // Get Product by ID
 productRouter.get("/products/:id", async (req, res) => {
