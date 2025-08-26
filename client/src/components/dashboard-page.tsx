@@ -2,7 +2,7 @@
 
 import { DashboardCards } from "@/components/dashboard-cards"
 import { RecentOrders } from "@/components/recent-orders"
-// import { RevenueChart } from "@/components/revenue-chart"
+import { RevenueChart } from "@/components/revenue-chart"
 import { TopProducts } from "@/components/top-products"
 
 export function DashboardPage() {
@@ -23,7 +23,10 @@ export function DashboardPage() {
           Dashboard
         </h1>
         <DashboardCards />
+        <div className="grid gap-5 md:grid-cols-2">
+          <RevenueChart />
         <TopProducts />
+        </div>
         <RecentOrders />
       </div>
     </div>
